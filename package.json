@@ -26,6 +26,7 @@
     "openai": "^3.2.1",
     "telegraf": "^4.12.2",
     "ts-node": "^10.9.1",
+    "microsoft-cognitiveservices-speech-sdk": "^1.27.0",
     "typescript": "^5.0.4"
   },
   "volta": {
