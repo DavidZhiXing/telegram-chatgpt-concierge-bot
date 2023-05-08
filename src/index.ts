@@ -28,6 +28,42 @@ bot.help((ctx) => {
   ctx.reply("Send me a message and I will echo it back to you.");
 });
 
+bot.settings(async (ctx) => {
+  const text = (ctx.message as any).text;
+
+  if (!text) {
+    ctx.reply("Please send a text message.");
+    return;
+  }
+
+  console.log("Input: ", text);
+
+  await ctx.sendChatAction("typing");
+  try {
+    const randomString = Date.now() + Math.floor(Math.random() * 10000);
+    const wavDestination = `${workDir}/${randomString}.mp3`;
+    const responseTranscriptionPath = await textToSpeech(text);
+    await ctx.sendChatAction("typing");
+    await ctx.replyWithVoice({
+      source: createReadStream(responseTranscriptionPath),
+      filename: wavDestination,
+    });
+  } catch (error) {
+    console.log(error);
+
+    const message = JSON.stringify(
+      (error as any)?.response?.data?.error ?? "Unable to extract error"
+    );
+
+    console.log({ message });
+
+    await ctx.reply(
+      "Whoops! There was an error while talking to OpenAI. Error: " + message
+    );
+  }
+
+});
+
 bot.on("voice", async (ctx) => {
   const voice = ctx.message.voice;
   await ctx.sendChatAction("typing");
@@ -88,6 +124,43 @@ bot.on("message", async (ctx) => {
   }
 
   console.log("Input: ", text);
+
+  if (text.startsWith('/tts')) {
+    const inputText = text.replace('/tts', '').trim();
+
+    if (!inputText) {
+      ctx.reply("Please provide text after the '/tts' command.");
+      return;
+    }
+
+    await ctx.sendChatAction("typing");
+    try {
+      const randomString = Date.now() + Math.floor(Math.random() * 10000);
+      const wavDestination = `${workDir}/${randomString}.mp3`;
+      const responseTranscriptionPath = await textToSpeech(inputText);
+      await ctx.sendChatAction("typing");
+      await ctx.replyWithVoice({
+        source: createReadStream(responseTranscriptionPath),
+        filename: wavDestination,
+      });
+      return;
+    } catch (error) {
+      console.log(error);
+  
+      const message = JSON.stringify(
+        (error as any)?.response?.data?.error ?? "Unable to extract error"
+      );
+  
+      console.log({ message });
+  
+      await ctx.reply(
+        "Whoops! There was an error while talking to OpenAI. Error: " + message
+      );
+    }
+  }
+
+
+ 
 
   await ctx.sendChatAction("typing");
   try {
