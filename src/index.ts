@@ -92,8 +92,15 @@ bot.on("message", async (ctx) => {
   await ctx.sendChatAction("typing");
   try {
     const response = await model.call(text);
-
+    const randomString = Date.now() + Math.floor(Math.random() * 10000);
+    const wavDestination = `${workDir}/${randomString}.mp3`;
     await ctx.reply(response);
+    const responseTranscriptionPath = await textToSpeech(response);
+    await ctx.sendChatAction("typing");
+    await ctx.replyWithVoice({
+      source: createReadStream(responseTranscriptionPath),
+      filename: wavDestination,
+    });
   } catch (error) {
     console.log(error);
 
