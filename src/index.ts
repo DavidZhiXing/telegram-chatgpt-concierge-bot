@@ -51,7 +51,7 @@ bot.on("voice", async (ctx) => {
 
   let response;
   try {
-    response = await model.call(transcription);
+    // response = await model.call(transcription);
   } catch (error) {
     console.log(error);
     await ctx.reply(
@@ -62,10 +62,10 @@ bot.on("voice", async (ctx) => {
 
   console.log(response);
 
-  await ctx.reply(response);
+  // await ctx.reply(response);
 
   try {
-    const responseTranscriptionPath = await textToSpeech(response);
+    const responseTranscriptionPath = await textToSpeech(transcription);
     await ctx.sendChatAction("typing");
     await ctx.replyWithVoice({
       source: createReadStream(responseTranscriptionPath),
