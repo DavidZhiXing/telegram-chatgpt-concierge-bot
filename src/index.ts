@@ -280,7 +280,7 @@ async function handleMixedLanguageResponse(ctx: Context, text: string) {
     const response = await model.call(text);
 
     // Split the response into segments based on language
-    const languagePattern = /(\p{Han}+)|(\p{Hiragana}+)|(\p{Katakana}+)|([a-zA-Z\s]+)/gu;
+    const languagePattern = new RegExp('(\p{Han}+)|(\p{Hiragana}+)|(\p{Katakana}+)|([a-zA-Z\s]+)', 'gu');
     const segments = [...response.matchAll(languagePattern)].map((m) => m[0]);
 
     // Process each segment and generate voice response
@@ -295,7 +295,7 @@ async function handleMixedLanguageResponse(ctx: Context, text: string) {
       };
 
       const azureTTSRole = languageRoleMapping[detectedLanguage];
-      await updateAzureTTSRole(azureTTSRole);
+      await updateAzureTTSRole(ctx.from.id, azureTTSRole);
 
       const randomString = Date.now() + Math.floor(Math.random() * 10000);
       const wavDestination = `${workDir}/${randomString}.mp3`;
@@ -320,7 +320,7 @@ async function handleMixedLanguageResponse(ctx: Context, text: string) {
       'Whoops! There was an error while talking to OpenAI. Error: ' + message
     );
   }
-};
+}
 
 bot.command('mix', async (ctx) => {
   const text = ctx.message.text;
