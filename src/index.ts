@@ -5,9 +5,7 @@ import { Telegraf, Markup, Context } from 'telegraf';
 import { downloadVoiceFile } from "./lib/downloadVoiceFile";
 import { postToWhisper } from "./lib/postToWhisper";
 import { textToSpeech,updateAzureTTSRole} from "./lib/azureTTS";
-//import { textToSpeech } from "./lib/htApi";
 import { createReadStream, existsSync, mkdirSync } from "fs";
-import { Model as ChatModel } from "./models/chat";
 import { Model as ChatWithTools } from "./models/chatWithTools";
 
 const workDir = "./tmp";
@@ -38,55 +36,6 @@ function detectLanguage(text: string): Language {
   return 'unknown';
 }
 
-// Handle the /mts command
-bot.command('mts', async (ctx) => {
-  const text = ctx.message.text;
-
-  if (!text || !text.startsWith('/mts')) {
-    ctx.reply("Please send a text message starting with '/mts'.");
-    return;
-  }
-
-  const inputText = text.replace('/mts', '').trim();
-
-  if (!inputText) {
-    ctx.reply("Please provide text after the '/mts' command.");
-    return;
-  }
-
-  console.log("Input: ", inputText);
-
-  const detectedLanguage = detectLanguage(inputText);
-  console.log("Detected language: ", detectedLanguage);
-
-  if (detectedLanguage === 'unknown') {
-    ctx.reply("Unable to detect the language. Please provide text in English, Chinese, or Japanese.");
-    return;
-  }
-
-  try {
-    const userId = ctx.from.id; // Get the user ID
-
-    // Update the Azure TTS role based on the detected language
-    const languageRoleMapping: Record<Language, string> = {
-      en: 'en-US-AriaNeural',
-      zh: 'zh-CN-XiaoxiaoNeural',
-      ja: 'ja-JP-KeitaNeural',
-      unknown: 'en-US-AriaNeural'
-    };
-
-    await updateAzureTTSRole(languageRoleMapping[detectedLanguage]);
-
-    await ctx.reply(`Azure TTS role has been updated to: ${languageRoleMapping[detectedLanguage]}`);
-  } catch (error) {
-    console.log(error);
-
-    await ctx.reply(
-      "Whoops! There was an error while updating the Azure TTS role."
-    );
-  }
-});
-
 bot.start((ctx) => {
   ctx.reply("Welcome to my Telegram bot!");
 });
@@ -98,16 +47,33 @@ bot.help((ctx) => {
 
 // Define the list of Azure TTS roles
 const azureTTSRoles = [
-  'en-US-AriaNeural',
+  'en-US-JaneNeural',
+  'en-US-NancyNeural',
   'zh-CN-XiaoxiaoNeural',
   'ja-JP-NanamiNeural',
   'ja-JP-MayuNeural',
   'ja-JP-KeitaNeural'
 ];
 
+const friendlyRoleNames: Record<string, string> = {
+  'en-US-JaneNeural': 'Jane',
+  'en-US-NancyNeural': 'Nancy',
+  'zh-CN-XiaoxiaoNeural': 'Xiaoxiao',
+  'ja-JP-NanamiNeural': 'Nanami',
+  'ja-JP-MayuNeural': 'Mayu',
+  'ja-JP-KeitaNeural': 'Keita'
+};
+
+const languageRoleMapping: Record<Language, string> = {
+  en: 'en-US-NancyNeural',
+  zh: 'zh-CN-XiaoxiaoNeural',
+  ja: 'ja-JP-NanamiNeural',
+  unknown: 'en-US-JaneNeural',
+};
+
 // Create an inline keyboard for the list of roles
 const roleSelectionKeyboard = Markup.inlineKeyboard(
-  azureTTSRoles.map((role) => Markup.button.callback(role, `set_role:${role}`))
+  azureTTSRoles.map((role) => Markup.button.callback(friendlyRoleNames[role], `set_role:${role}`))
 );
 
 // Handle the /settings command
@@ -156,7 +122,7 @@ bot.on("voice", async (ctx) => {
 
   let response;
   try {
-    // response = await model.call(transcription);
+    response = await model.call(transcription);
   } catch (error) {
     console.log(error);
     await ctx.reply(
@@ -167,10 +133,10 @@ bot.on("voice", async (ctx) => {
 
   console.log(response);
 
-  // await ctx.reply(response);
+  await ctx.reply(response);
 
   try {
-    const responseTranscriptionPath = await textToSpeech(transcription);
+    const responseTranscriptionPath = await textToSpeech(response);
     await ctx.sendChatAction("typing");
     await ctx.replyWithVoice({
       source: createReadStream(responseTranscriptionPath),
@@ -248,13 +214,6 @@ bot.on("message", async (ctx) => {
     const detectedLanguage = detectLanguage(response);
     console.log('Detected language: ', detectedLanguage);
 
-    const languageRoleMapping: Record<Language, string> = {
-      en: 'en-US-AriaNeural',
-      zh: 'zh-CN-XiaoxiaoNeural',
-      ja: 'ja-JP-NanamiNeural',
-      unknown: 'en-US-AriaNeural',
-    };
-
     const azureTTSRole = languageRoleMapping[detectedLanguage];
     await updateAzureTTSRole(azureTTSRole);
 
@@ -294,22 +253,15 @@ process.on("SIGTERM", () => {
 async function handleMixedLanguageResponse(ctx: Context, text: string) {
   await ctx.sendChatAction('typing');
   try {
-    const response = await model.call(text);
+    const response = text;
 
     // Split the response into segments based on language
-    const languagePattern = new RegExp('(\p{Han}+)|(\p{Hiragana}+)|(\p{Katakana}+)|([a-zA-Z\s]+)', 'gu');
+    const languagePattern = new RegExp('([\\p{Han}\\p{Hiragana}\\p{Katakana}]+)|([a-zA-Z\\s]+)', 'gu');
     const segments = [...response.matchAll(languagePattern)].map((m) => m[0]);
 
     // Process each segment and generate voice response
     for (const segment of segments) {
       const detectedLanguage = detectLanguage(segment);
-
-      const languageRoleMapping: Record<Language, string> = {
-        en: 'en-US-AriaNeural',
-        zh: 'zh-CN-XiaoxiaoNeural',
-        ja: 'ja-JP-NanamiNeural',
-        unknown: 'en-US-AriaNeural',
-      };
 
       const azureTTSRole = languageRoleMapping[detectedLanguage];
       await updateAzureTTSRole(azureTTSRole);
@@ -334,18 +286,8 @@ async function handleMixedLanguageResponse(ctx: Context, text: string) {
     console.log({ message });
 
     await ctx.reply(
-      'Whoops! There was an error while talking to OpenAI. Error: ' + message
+      'Whoops! There was an error while processing the text. Error: ' + message
     );
   }
 }
 
-bot.command('mix', async (ctx) => {
-  const text = ctx.message.text;
-
-  if (!text || !text.startsWith('/mix')) {
-    ctx.reply("Please send a text message starting with '/mix'.");
-    return;
-  }
-  const inputText = text.replace('/mix', '').trim();
-  await handleMixedLanguageResponse(ctx, inputText);
-});
