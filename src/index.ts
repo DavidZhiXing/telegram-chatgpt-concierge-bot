@@ -101,6 +101,7 @@ const azureTTSRoles = [
   'en-US-AriaNeural',
   'zh-CN-XiaoxiaoNeural',
   'ja-JP-NanamiNeural',
+  'ja-JP-MayuNeural',
   'ja-JP-KeitaNeural'
 ];
 
@@ -208,7 +209,7 @@ bot.on("message", async (ctx) => {
     await handleMixedLanguageResponse(ctx, inputText);
     return;
   }
-  
+
   if (text.startsWith('/tts')) {
     const inputText = text.replace('/tts', '').trim();
 
