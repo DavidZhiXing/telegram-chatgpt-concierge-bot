@@ -193,6 +193,22 @@ bot.on("message", async (ctx) => {
 
   console.log("Input: ", text);
 
+  if (text.startsWith('/mix')) {
+    const inputText = text.replace('/mix', '').trim();
+
+    if (!inputText) {
+      ctx.reply("Please provide text after the '/mix' command.");
+      return;
+    }
+
+    if (!text || !text.startsWith('/mix')) {
+      ctx.reply("Please send a text message starting with '/mix'.");
+      return;
+    }
+    await handleMixedLanguageResponse(ctx, inputText);
+    return;
+  }
+  
   if (text.startsWith('/tts')) {
     const inputText = text.replace('/tts', '').trim();
 
