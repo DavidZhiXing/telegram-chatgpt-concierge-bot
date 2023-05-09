@@ -1,10 +1,10 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { Telegraf } from "telegraf";
+import { Telegraf, Markup } from 'telegraf';
 import { downloadVoiceFile } from "./lib/downloadVoiceFile";
 import { postToWhisper } from "./lib/postToWhisper";
-import { textToSpeech } from "./lib/azureTTS";
+import { textToSpeech,updateAzureTTSRole} from "./lib/azureTTS";
 //import { textToSpeech } from "./lib/htApi";
 import { createReadStream, existsSync, mkdirSync } from "fs";
 import { Model as ChatModel } from "./models/chat";
@@ -28,41 +28,41 @@ bot.help((ctx) => {
   ctx.reply("Send me a message and I will echo it back to you.");
 });
 
-bot.settings(async (ctx) => {
-  const text = (ctx.message as any).text;
 
-  if (!text) {
-    ctx.reply("Please send a text message.");
-    return;
-  }
+// Define the list of Azure TTS roles
+const azureTTSRoles = [
+  'en-US-AriaNeural',
+  'zh-CN-XiaoxiaoNeural',
+  'ja-JP-NanamiNeural'
+];
 
-  console.log("Input: ", text);
+// Create an inline keyboard for the list of roles
+const roleSelectionKeyboard = Markup.inlineKeyboard(
+  azureTTSRoles.map((role) => Markup.button.callback(role, `set_role:${role}`))
+);
 
-  await ctx.sendChatAction("typing");
+// Handle the /settings command
+bot.command('settings', (ctx) => {
+  ctx.reply('Please select an Azure TTS role:', roleSelectionKeyboard);
+});
+
+// Handle the callback query when a role is selected
+bot.action(/^set_role:(.+)$/, async (ctx) => {
+  const selectedRole = ctx.match[1];
+
   try {
-    const randomString = Date.now() + Math.floor(Math.random() * 10000);
-    const wavDestination = `${workDir}/${randomString}.mp3`;
-    const responseTranscriptionPath = await textToSpeech(text);
-    await ctx.sendChatAction("typing");
-    await ctx.replyWithVoice({
-      source: createReadStream(responseTranscriptionPath),
-      filename: wavDestination,
-    });
+    await updateAzureTTSRole(selectedRole);
+
+    await ctx.answerCbQuery(`Azure TTS role has been updated to: ${selectedRole}`);
   } catch (error) {
     console.log(error);
 
-    const message = JSON.stringify(
-      (error as any)?.response?.data?.error ?? "Unable to extract error"
-    );
-
-    console.log({ message });
-
-    await ctx.reply(
-      "Whoops! There was an error while talking to OpenAI. Error: " + message
+    await ctx.answerCbQuery(
+      "Whoops! There was an error while updating the Azure TTS role."
     );
   }
-
 });
+
 
 bot.on("voice", async (ctx) => {
   const voice = ctx.message.voice;

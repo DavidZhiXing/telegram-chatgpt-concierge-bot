@@ -9,7 +9,7 @@ if (typeof atSpeechKey !== 'string' || typeof atRegion !== 'string' || typeof at
 }
 
 const AudioPath = './tmp/azure-tts.wav';
-const speechConfig = SpeechConfig.fromSubscription(atSpeechKey, atRegion);
+let speechConfig = SpeechConfig.fromSubscription(atSpeechKey, atRegion);
 speechConfig.speechSynthesisVoiceName = atVoiceAgent;
 
 export async function textToSpeech(text: string) {
@@ -41,4 +41,8 @@ export async function textToSpeech(text: string) {
     );
   });
   return AudioPath;
+}
+
+export async function updateAzureTTSRole(voiceAgent : string) {
+  speechConfig.speechSynthesisVoiceName = voiceAgent;
 }
