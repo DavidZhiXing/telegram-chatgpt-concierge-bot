@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { Telegraf, Markup } from 'telegraf';
+import { Telegraf, Markup, Context } from 'telegraf';
 import { downloadVoiceFile } from "./lib/downloadVoiceFile";
 import { postToWhisper } from "./lib/postToWhisper";
 import { textToSpeech,updateAzureTTSRole} from "./lib/azureTTS";
@@ -272,4 +272,63 @@ bot.launch().then(() => {
 
 process.on("SIGTERM", () => {
   bot.stop();
+});
+
+async function handleMixedLanguageResponse(ctx: Context, text: string) {
+  await ctx.sendChatAction('typing');
+  try {
+    const response = await model.call(text);
+
+    // Split the response into segments based on language
+    const languagePattern = /(\p{Han}+)|(\p{Hiragana}+)|(\p{Katakana}+)|([a-zA-Z\s]+)/gu;
+    const segments = [...response.matchAll(languagePattern)].map((m) => m[0]);
+
+    // Process each segment and generate voice response
+    for (const segment of segments) {
+      const detectedLanguage = detectLanguage(segment);
+
+      const languageRoleMapping: Record<Language, string> = {
+        en: 'en-US-AriaNeural',
+        zh: 'zh-CN-XiaoxiaoNeural',
+        ja: 'ja-JP-NanamiNeural',
+        unknown: 'en-US-AriaNeural',
+      };
+
+      const azureTTSRole = languageRoleMapping[detectedLanguage];
+      await updateAzureTTSRole(azureTTSRole);
+
+      const randomString = Date.now() + Math.floor(Math.random() * 10000);
+      const wavDestination = `${workDir}/${randomString}.mp3`;
+      await ctx.reply(segment);
+      const responseTranscriptionPath = await textToSpeech(segment);
+      await ctx.sendChatAction('typing');
+      await ctx.replyWithVoice({
+        source: createReadStream(responseTranscriptionPath),
+        filename: wavDestination,
+      });
+    }
+  } catch (error) {
+    console.log(error);
+
+    const message = JSON.stringify(
+      (error as any)?.response?.data?.error ?? 'Unable to extract error'
+    );
+
+    console.log({ message });
+
+    await ctx.reply(
+      'Whoops! There was an error while talking to OpenAI. Error: ' + message
+    );
+  }
+};
+
+bot.command('mix', async (ctx) => {
+  const text = ctx.message.text;
+
+  if (!text || !text.startsWith('/mix')) {
+    ctx.reply("Please send a text message starting with '/mix'.");
+    return;
+  }
+  const inputText = text.replace('/mix', '').trim();
+  await handleMixedLanguageResponse(ctx, inputText);
 });
