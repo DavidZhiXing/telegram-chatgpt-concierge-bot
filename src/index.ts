@@ -295,7 +295,7 @@ async function handleMixedLanguageResponse(ctx: Context, text: string) {
       };
 
       const azureTTSRole = languageRoleMapping[detectedLanguage];
-      await updateAzureTTSRole(ctx.from.id, azureTTSRole);
+      await updateAzureTTSRole(azureTTSRole);
 
       const randomString = Date.now() + Math.floor(Math.random() * 10000);
       const wavDestination = `${workDir}/${randomString}.mp3`;
